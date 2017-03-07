@@ -13,8 +13,9 @@ start() ->
 next(Ballot_num, Accepted) ->
   receive
     {p1a, L, B} ->
+      Comparison = compare(B, Ballot_num),
       if
-        compare(B, Ballot_Num) == 1 ->
+        Comparison == 1 ->
           L ! {p1b, self(), B, Accepted},
           next(B, Accepted);
         true ->
@@ -22,13 +23,14 @@ next(Ballot_num, Accepted) ->
           next(Ballot_num, Accepted)
       end;
       {p2a, L, {B, S, C}} ->
-        L ! {p2b, self(), Ballot_Num},
+        L ! {p2b, self(), Ballot_num},
+        Comparison = compare(B, Ballot_num),
         if
-          compare(B, Ballot_num) == 0 ->
+          Comparison == 0 ->
             next(B, [{B, S, C} | Accepted]);
           true ->
             next(Ballot_num, Accepted)
-        end.
+        end
   end. % receive
 
 compare({B, _}, {B_, _}) ->

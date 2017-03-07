@@ -3,7 +3,7 @@
 
 .SUFFIXES: .erl .beam
 
-MODULES = system server database replica client acceptor leader commander scout
+MODULES = system server database client acceptor leader commander scout #replica
 
 # BUILD ====================================================
 
