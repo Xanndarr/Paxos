@@ -6,12 +6,12 @@
 -export([start/0]).
 
 start() ->
-  N_servers  = 1,
+  N_servers  = 5,
   N_clients  = 1,
   N_accounts = 10,
   Max_amount = 1000,
 
-  End_after  = 10000,   %  Milli-seconds for Simulation
+  End_after  = 1000,   %  Milli-seconds for Simulation
 
   _Servers = [ spawn(server, start, [self(), N_accounts, End_after])
     || _ <- lists:seq(1, N_servers) ],
