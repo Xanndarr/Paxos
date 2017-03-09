@@ -1,6 +1,6 @@
 %%% distributed algorithms, n.dulay 27 feb 17
 %%% coursework 2, paxos made moderately complex
-%%% tb1414
+%%% tb1414  hh2214
 
 -module(system).
 -export([start/0]).
