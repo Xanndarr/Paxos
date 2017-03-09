@@ -8,7 +8,7 @@
 start(L, Acceptors, B) ->
   [ A ! {p1a, self(), B} || A <- Acceptors ],
   Waitfor = Acceptors,
-  PValues = [],
+  PValues = sets:new(),
   next(L, Acceptors, B, Waitfor, PValues).
 
 next(L, Acceptors, B, Waitfor, PValues) ->
@@ -16,11 +16,13 @@ next(L, Acceptors, B, Waitfor, PValues) ->
     {p1b, A, B_new, R} ->
       if
         B == B_new ->
-          New_PValues = [R | PValues],
+          New_PValues = sets:union([PValues, R]),
           New_Waitfor = [ W || W <- Waitfor, W /= A ],
-          if length(New_Waitfor) < length(Acceptors) / 2 ->
-            L ! {adopted, B, New_PValues},
-            exit(normal)
+          if
+            length(New_Waitfor) < length(Acceptors) / 2 ->
+              L ! {adopted, B, New_PValues},
+              exit(normal);
+            true -> ok
           end,
           next(L, Acceptors, B, New_Waitfor, New_PValues);
         true ->

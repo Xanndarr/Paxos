@@ -16,9 +16,11 @@ next(L, Acceptors, Replicas, {B, S, C}, Waitfor) ->
       if
         B == B_new ->
           New_Waitfor = [ W || W <- Waitfor, W /= A ],
-          if length(New_Waitfor) < length(Acceptors) / 2 ->
-            [ R ! {decision, S, C} || R <- Replicas ],
-            exit(normal)
+          if
+            length(New_Waitfor) < length(Acceptors) / 2 ->
+              [ R ! {decision, S, C} || R <- Replicas ],
+              exit(normal);
+            true -> ok
           end,
           next(L, Acceptors, Replicas, {B, S, C}, New_Waitfor);
         true ->

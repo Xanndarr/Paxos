@@ -11,7 +11,7 @@ start(Database) ->
       State = Database,
       Slot_in = 1,
       Slot_out = 1,
-      Requests = [],
+      Requests = sets:new(),
       Proposals = maps:new(),
       Decisions = maps:new(),
       next(State, Slot_in, Slot_out, Requests, Proposals, Decisions, Leaders)
@@ -22,7 +22,7 @@ next(State, Slot_in, Slot_out, Requests, Proposals, Decisions, Leaders) ->
 
   receive
     {request, C} ->      % request from client
-      Requests2 = [C | Requests],
+      Requests2 = sets:add_element(C, Requests),
       {Slot_out, Decisions, Proposals, Requests2};
       %next(State, Slot_in, Slot_out, NewRequests, Proposals, Decisions, Leaders);
     {decision, S, C} ->  % decision from commander
@@ -37,11 +37,12 @@ next(State, Slot_in, Slot_out, Requests, Proposals, Decisions, Leaders) ->
 
 propose(Slot_in, Slot_out, Requests, Proposals, Decisions, Leaders) ->
   WINDOW = 5,
-  if (Slot_in < Slot_out+WINDOW) and (length(Requests) /= 0) ->
+  Request_Size = sets:size(Requests),
+  if (Slot_in < Slot_out+WINDOW) and (Request_Size > 0) ->
         FoundVal = maps:is_key(Slot_in, Decisions),
         {Requests3, Proposals3} = if not FoundVal ->
-                                      C = lists:min(Requests),
-                                      Requests2 = lists:delete(C, Requests),
+                                      C = lists:min(sets:to_list(Requests)),
+                                      Requests2 = sets:del_element(C, Requests),
                                       Proposals2 = maps:put(Slot_in, C, Proposals),
 
                                       [Leader ! {propose, Slot_in, C} || Leader <- Leaders], %% TODO USE SEND FUNCTION???
@@ -65,7 +66,7 @@ decide(State, Slot_out, Decisions, Proposals, Requests) ->
                                     CPP = maps:get(Slot_out, Proposals),
                                     Proposals2 = maps:remove(Slot_out, Proposals),
                                     if CP /= CPP ->
-                                        Requests2 = lists:delete(CPP, Requests),
+                                        Requests2 = sets:del_element(CPP, Requests),
                                         {Proposals2, Requests2};
                                       true -> {Proposals2, Requests}
                                     end;

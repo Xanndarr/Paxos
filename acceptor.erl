@@ -6,16 +6,15 @@
 -export([start/0]).
 
 start() ->
-  Ballot_num = {-1, -1},
-  Accepted = [],
+  Ballot_num = undefined,
+  Accepted = sets:new(),
   next(Ballot_num, Accepted).
 
 next(Ballot_num, Accepted) ->
   receive
     {p1a, L, B} ->
-      Comparison = compare(B, Ballot_num),
       if
-        Comparison == 1 ->
+        B > Ballot_num ->
           L ! {p1b, self(), B, Accepted},
           next(B, Accepted);
         true ->
@@ -24,18 +23,11 @@ next(Ballot_num, Accepted) ->
       end;
       {p2a, L, {B, S, C}} ->
         L ! {p2b, self(), Ballot_num},
-        Comparison = compare(B, Ballot_num),
         if
-          Comparison == 0 ->
-            next(B, [{B, S, C} | Accepted]);
+          B == Ballot_num ->
+            New_Accepted = sets:add_element({B, S, C}, Accepted),
+            next(B, New_Accepted);
           true ->
             next(Ballot_num, Accepted)
         end
   end. % receive
-
-compare({B, _}, {B_, _}) ->
-  if
-    B < B_ -> -1;
-    B == B_ -> 0;
-    B > B_ -> 1
-  end.

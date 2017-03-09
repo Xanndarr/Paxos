@@ -3,33 +3,45 @@
 %%% tb1414  hh2214
 
 -module(leader).
--export([start/2]).
+-export([start/0]).
 
-start(Acceptors, Replicas) ->
-  Ballot_Num = {0, self()},
-  Active = false,
-  Proposals = [],
-  spawn(scout, start, [self(), Acceptors, Ballot_Num]),
-  next(Acceptors, Replicas, Ballot_Num, Active, Proposals).
+start() ->
+  receive
+    {bind, Acceptors, Replicas} ->
+      Ballot_Num = {0, self()},
+      Active = false,
+      Proposals = sets:new(),
+      spawn(scout, start, [self(), Acceptors, Ballot_Num]),
+      next(Acceptors, Replicas, Ballot_Num, Active, Proposals)
+  end.
 
 next(Acceptors, Replicas, Ballot_Num, Active, Proposals) ->
   receive
     {propose, S, C} ->
-      Len = length([ found || {S_, _} <- Proposals, S == S_ ]),
+      Len = length([ found || {S_, _} <- sets:to_list(Proposals), S == S_ ]),
       if
         Len == 0 ->
-          New_Proposals = [{S, C} | Proposals],
-          if Active ->
-            spawn(commander, start, [self(), Acceptors, Replicas, {Ballot_Num, S, C}])
+          New_Proposals = sets:add_element({S, C}, Proposals),
+          if
+            Active ->
+              spawn(commander, start, [self(), Acceptors, Replicas, {Ballot_Num, S, C}]);
+            true ->
+              ok
           end,
-          next(Acceptors, Replicas, Ballot_Num, Active, New_Proposals)
+          next(Acceptors, Replicas, Ballot_Num, Active, New_Proposals);
+        true ->
+          next(Acceptors, Replicas, Ballot_Num, Active, Proposals)
       end;
     {adopted, B_Num, PVals} ->
-      PMax = [ {S, C} || {B, S, C} <- PVals, {B_, S_, C_} <- PVals, B_ =< B, S == S_ ], %%%%%%%%%%%%%%%%%broken
-      New_Proposals = PMax ++ [ P || P <- Proposals, not lists:member(P, PMax) ],
-      [ spawn(commander, start, [self(), Acceptors, Replicas, {Ballot_Num, S, C}]) || {S, C} <- Proposals ],
+      Prop_List = sets:to_list(Proposals),
+      New_Proposals = sets:union(
+                        [sets:from_list(
+                            [ {S, C} || {S, C} <- Prop_List, not filter_slot(S, Prop_List) ]
+                        ), PVals]
+                      ),
+      [ spawn(commander, start, [self(), Acceptors, Replicas, {B_Num, S, C}]) || {S, C} <- sets:to_list(New_Proposals) ],
       New_Active = true,
-      next(Acceptors, Replicas, Ballot_Num, New_Active, New_Proposals);
+      next(Acceptors, Replicas, B_Num, New_Active, New_Proposals);
     {preempted, {R_, L_}} ->
       if
         {R_, L_} > Ballot_Num ->
@@ -41,3 +53,10 @@ next(Acceptors, Replicas, Ballot_Num, Active, Proposals) ->
           next(Acceptors, Replicas, Ballot_Num, Active, Proposals)
       end
   end. % receive
+
+filter_slot(Slot, [ {Slot, _} | _]) ->
+  true;
+filter_slot(Slot, [_ | L]) ->
+  filter_slot(Slot, L);
+filter_slot(_, _) ->
+  false.
